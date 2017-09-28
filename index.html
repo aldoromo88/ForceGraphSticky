@@ -1,0 +1,213 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Force based label placement</title>
+
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script type="text/javascript" src="red.js"></script>
+</head>
+
+<body>
+
+  <canvas width="960" height="960"></canvas>
+
+  <script type="text/javascript" charset="utf-8">
+    var canvas = document.querySelector("canvas"),
+      context = canvas.getContext("2d"),
+      width = canvas.width,
+      height = canvas.height,
+      padding = 7;
+
+
+    var nodes = window.Data.CustomerBeneficiary.map(m => {
+      m.Height = 10;
+      m.Width = context.measureText(m.Name).width;
+      m.Padding = m.Width / -2;
+      return m;
+    });
+
+    var links = window.Data.Movements.map(m => ({
+      source: m.From,
+      target: m.To,
+      weight: 20
+    }));
+
+
+    var simulation = d3.forceSimulation(nodes)
+      .force("charge", d3.forceManyBody().strength(-50))
+      .force("link", d3.forceLink(links).distance(10).strength(0.5).id(d => d.Id))
+      .force("x", d3.forceX())
+      .force("y", d3.forceY())
+      .force("collide", collide)
+      .on("tick", ticked);
+
+    d3.select(canvas)
+      .call(d3.drag()
+        .container(canvas)
+        .subject(dragsubject)
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+
+    function ticked() {
+      context.clearRect(0, 0, width, height);
+      context.save();
+      context.translate(width / 2, height / 2);
+
+      context.beginPath();
+      links.forEach(drawLink);
+      context.strokeStyle = "#a00";
+      context.stroke();
+
+      context.beginPath();
+      nodes.forEach(drawNode);
+      context.fill();
+      context.strokeStyle = "#fff";
+      context.stroke();
+
+      context.restore();
+    }
+
+    function dragsubject() {
+      return simulation.find(d3.event.x - width / 2, d3.event.y - height / 2);
+    }
+
+    function dragstarted() {
+      if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+      d3.event.subject.fx = d3.event.subject.x;
+      d3.event.subject.fy = d3.event.subject.y;
+    }
+
+    function dragged() {
+      d3.event.subject.fx = d3.event.x;
+      d3.event.subject.fy = d3.event.y;
+    }
+
+    function dragended() {
+      if (!d3.event.active) simulation.alphaTarget(0);
+      d3.event.subject.fx = null;
+      d3.event.subject.fy = null;
+    }
+
+    function drawLink(d) {
+      context.moveTo(d.source.x, d.source.y);
+      context.lineTo(d.target.x, d.target.y);
+    }
+
+    function drawNode(d) {
+      context.moveTo(d.x + 3, d.y);
+      context.arc(d.x, d.y, 3, 0, 2 * Math.PI);
+      context.fillText(d.Name, d.x + d.Padding, d.y + d.Height);
+    }
+
+
+
+    function collide() {
+      for (var k = 0, strength = 0.5; k < 10; ++k) {
+        for (var i = 0, n = nodes.length; i < n; ++i) {
+          for (var a = nodes[i], j = i + 1; j < n; ++j) {
+            var b = nodes[j],
+              x = a.x + a.vx - b.x - b.vx,
+              y = a.y + a.vy - b.y - b.vy,
+              lx = Math.abs(x),
+              ly = Math.abs(y);
+            //r = a.r + b.r + padding;
+            //if (lx < r && ly < r) {
+            // if (lx > ly) {
+            //   lx = (lx - r) * (x < 0 ? -strength : strength);
+            //   a.vx -= lx, b.vx += lx;
+            // } else {
+            //   ly = (ly - r) * (y < 0 ? -strength : strength);
+            //   a.vy -= ly, b.vy += ly;
+            // }
+            //}
+
+            //TODO: Detectar colisión y evitarla
+          }
+        }
+      }
+    }
+
+    // var force = d3.layout.force().size([w, h]).nodes(nodes).links(links).gravity(1).linkDistance(50).charge(-3000).linkStrength(20).id(function(d) {
+    //   return d.Id;
+    // });
+    //
+    // force.start();
+    //
+    // var force2 = d3.layout.force().nodes(labelAnchors).links(labelAnchorLinks).gravity(0).linkDistance(0).linkStrength(8).charge(-100).size([w, h]);
+    // force2.start();
+    //
+    // var link = vis.selectAll("line.link").data(links).enter().append("svg:line").attr("class", "link").style("stroke", "#CCC");
+    //
+    // var node = vis.selectAll("g.node").data(force.nodes()).enter().append("svg:g").attr("class", "node");
+    // node.append("svg:circle").attr("r", 5).style("fill", "#555").style("stroke", "#FFF").style("stroke-width", 3);
+    // node.call(force.drag);
+    //
+    //
+    // var anchorLink = vis.selectAll("line.anchorLink").data(labelAnchorLinks) //.enter().append("svg:line").attr("class", "anchorLink").style("stroke", "#999");
+    //
+    // var anchorNode = vis.selectAll("g.anchorNode").data(force2.nodes()).enter().append("svg:g").attr("class", "anchorNode");
+    // anchorNode.append("svg:circle").attr("r", 0).style("fill", "#FFF");
+    // anchorNode.append("svg:text").text(function(d, i) {
+    //   return i % 2 == 0 ? "" : d.node.label
+    // }).style("fill", "#555").style("font-family", "Arial").style("font-size", 12);
+    //
+    // var updateLink = function() {
+    //   this.attr("x1", function(d) {
+    //     return d.source.x;
+    //   }).attr("y1", function(d) {
+    //     return d.source.y;
+    //   }).attr("x2", function(d) {
+    //     return d.target.x;
+    //   }).attr("y2", function(d) {
+    //     return d.target.y;
+    //   });
+    //
+    // }
+    //
+    // var updateNode = function() {
+    //   this.attr("transform", function(d) {
+    //     return "translate(" + d.x + "," + d.y + ")";
+    //   });
+    //
+    // }
+    //
+    //
+    // force.on("tick", function() {
+    //
+    //   force2.start();
+    //
+    //   node.call(updateNode);
+    //
+    //   anchorNode.each(function(d, i) {
+    //     if (i % 2 == 0) {
+    //       d.x = d.node.x;
+    //       d.y = d.node.y;
+    //     } else {
+    //       var b = this.childNodes[1].getBBox();
+    //
+    //       var diffX = d.x - d.node.x;
+    //       var diffY = d.y - d.node.y;
+    //
+    //       var dist = Math.sqrt(diffX * diffX + diffY * diffY);
+    //
+    //       var shiftX = b.width * (diffX - dist) / (dist * 2);
+    //       shiftX = Math.max(-b.width, Math.min(0, shiftX));
+    //       var shiftY = 5;
+    //       this.childNodes[1].setAttribute("transform", "translate(" + shiftX + "," + shiftY + ")");
+    //     }
+    //   });
+    //
+    //
+    //   anchorNode.call(updateNode);
+    //
+    //   link.call(updateLink);
+    //   anchorLink.call(updateLink);
+
+    //});
+  </script>
+</body>
+
+</html>
