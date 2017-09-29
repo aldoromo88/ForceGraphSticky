@@ -38,10 +38,8 @@
       m.lastNameWidth = context.measureText(m.lastName).width;
 
       m.width = m.nameWidth > m.lastNameWidth ? m.nameWidth : m.lastNameWidth;
-      m.strength = (m.width / -2) - 2;
-      // if (m.Id > 0) {
-      //   m.strength = m.strength * -1;
-      // }
+      m.strength = m.width / -2;
+
       return m;
     });
 
@@ -63,7 +61,6 @@
     d3.select("canvas")
 
       .call(d3.drag()
-        //.container(canvas)
         .subject(dragsubject)
         .on("start", dragstarted)
         .on("drag", dragged)
@@ -80,26 +77,17 @@
       context.translate(transform.x, transform.y);
       context.scale(transform.k, transform.k);
 
-      //context.translate(width / 2, height / 2);
-
       context.beginPath();
       links.forEach(drawLink);
       context.strokeStyle = "#F88";
       context.stroke();
 
-
-
       nodes.forEach(drawNode);
-
-
-
 
       context.restore();
     }
 
-    // function dragsubject() {
-    //   return simulation.find(d3.event.x - width, d3.event.y - height);
-    // }
+
     function dragsubject() {
       var i,
         x = transform.invertX(d3.event.x),
@@ -119,22 +107,9 @@
 
     function dragstarted() {
       if (!d3.event.active) simulation.alphaTarget(0.3).restart();
-      //simulation.force("collide", null);
-      //simulation.force("charge", null);
-      // let x = transform.applyX(d3.event.subject.x);
-      // let y = transform.applyY(d3.event.subject.y)
-      // d3.event.subject.fx = x;
-      // d3.event.subject.fy = y;
-      // d3.event.subject.x = x;
-      // d3.event.subject.y = y
-
-      // d3.event.subject.fx = d3.event.subject.x;
-      // d3.event.subject.fy = d3.event.subject.y;
     }
 
     function dragged() {
-      // d3.event.subject.fx = d3.event.subject.x;
-      // d3.event.subject.fy = d3.event.subject.y;
       d3.event.subject.x += d3.event.dx / transform.k;
       d3.event.subject.y += d3.event.dy / transform.k;
       ticked();
@@ -142,11 +117,6 @@
 
     function dragended() {
       if (!d3.event.active) simulation.alphaTarget(0);
-      //simulation.force("collide", collide);
-      //simulation.force("charge", charge);
-
-      // d3.event.subject.fx = null;
-      // d3.event.subject.fy = null;
     }
 
     function drawLink(d) {
@@ -174,9 +144,7 @@
       context.strokeText(d.name, d.x - (d.nameWidth / 2), d.y + 15);
       context.strokeText(d.lastName, d.x - (d.lastNameWidth / 2), d.y + 25);
 
-
     }
-
 
 
     function collide() {
