@@ -18,77 +18,135 @@
       context = canvas.getContext("2d"),
       width = canvas.width,
       height = canvas.height,
-      padding = 7;
+      transform = d3.zoomIdentity;
+
+
 
 
     var nodes = window.Data.CustomerBeneficiary.map(m => {
-      m.Height = 10;
-      m.Width = context.measureText(m.Name).width;
-      m.Padding = m.Width / -2;
+      let names = m.Name.split(' ');
+
+      m.name = names.shift();
+      if (names.length > 2) {
+        m.name = `${m.name} ${names.shift()}`;
+      }
+
+      m.lastName = names.join(' ');
+      m.height = 30;
+
+      m.nameWidth = context.measureText(m.name).width;
+      m.lastNameWidth = context.measureText(m.lastName).width;
+
+      m.width = m.nameWidth > m.lastNameWidth ? m.nameWidth : m.lastNameWidth;
+      m.strength = (m.width / -2) - 2;
+      // if (m.Id > 0) {
+      //   m.strength = m.strength * -1;
+      // }
       return m;
     });
 
     var links = window.Data.Movements.map(m => ({
       source: m.From,
-      target: m.To,
-      weight: 20
+      target: m.To
     }));
 
 
+    var  charge = d3.forceManyBody().strength(d => d.strength*10);
+
     var simulation = d3.forceSimulation(nodes)
-      .force("charge", d3.forceManyBody().strength(-50))
-      .force("link", d3.forceLink(links).distance(10).strength(0.5).id(d => d.Id))
-      .force("x", d3.forceX())
-      .force("y", d3.forceY())
+      .force("charge", charge)
+      .force("link", d3.forceLink(links).distance(150).iterations(10).id(d => d.Id))
+
       .force("collide", collide)
       .on("tick", ticked);
 
-    d3.select(canvas)
+    d3.select("canvas")
+
       .call(d3.drag()
-        .container(canvas)
+        //.container(canvas)
         .subject(dragsubject)
         .on("start", dragstarted)
         .on("drag", dragged)
-        .on("end", dragended));
+        .on("end", dragended)
+      )
+      .call(d3.zoom()
+        .scaleExtent([1 / 8, 2])
+        .on("zoom", zoomed));
 
     function ticked() {
-      context.clearRect(0, 0, width, height);
       context.save();
-      context.translate(width / 2, height / 2);
+      context.clearRect(0, 0, width, height);
+
+      context.translate(transform.x, transform.y);
+      context.scale(transform.k, transform.k);
+
+      //context.translate(width / 2, height / 2);
 
       context.beginPath();
       links.forEach(drawLink);
-      context.strokeStyle = "#a00";
+      context.strokeStyle = "#F88";
       context.stroke();
 
-      context.beginPath();
+
+
       nodes.forEach(drawNode);
-      context.fill();
-      context.strokeStyle = "#fff";
-      context.stroke();
+
+
+
 
       context.restore();
     }
 
+    // function dragsubject() {
+    //   return simulation.find(d3.event.x - width, d3.event.y - height);
+    // }
     function dragsubject() {
-      return simulation.find(d3.event.x - width / 2, d3.event.y - height / 2);
+      var i,
+        x = transform.invertX(d3.event.x),
+        y = transform.invertY(d3.event.y),
+        dx,
+        dy;
+
+      for (i = nodes.length - 1; i >= 0; --i) {
+        node = nodes[i];
+        dx = x - node.x;
+        dy = y - node.y;
+        if (dx * dx + dy * dy < 25 * 25) {
+          return node;
+        }
+      }
     }
 
     function dragstarted() {
       if (!d3.event.active) simulation.alphaTarget(0.3).restart();
-      d3.event.subject.fx = d3.event.subject.x;
-      d3.event.subject.fy = d3.event.subject.y;
+      //simulation.force("collide", null);
+      //simulation.force("charge", null);
+      // let x = transform.applyX(d3.event.subject.x);
+      // let y = transform.applyY(d3.event.subject.y)
+      // d3.event.subject.fx = x;
+      // d3.event.subject.fy = y;
+      // d3.event.subject.x = x;
+      // d3.event.subject.y = y
+
+      // d3.event.subject.fx = d3.event.subject.x;
+      // d3.event.subject.fy = d3.event.subject.y;
     }
 
     function dragged() {
-      d3.event.subject.fx = d3.event.x;
-      d3.event.subject.fy = d3.event.y;
+      // d3.event.subject.fx = d3.event.subject.x;
+      // d3.event.subject.fy = d3.event.subject.y;
+      d3.event.subject.x += d3.event.dx / transform.k;
+      d3.event.subject.y += d3.event.dy / transform.k;
+      ticked();
     }
 
     function dragended() {
       if (!d3.event.active) simulation.alphaTarget(0);
-      d3.event.subject.fx = null;
-      d3.event.subject.fy = null;
+      //simulation.force("collide", collide);
+      //simulation.force("charge", charge);
+
+      // d3.event.subject.fx = null;
+      // d3.event.subject.fy = null;
     }
 
     function drawLink(d) {
@@ -97,116 +155,63 @@
     }
 
     function drawNode(d) {
-      context.moveTo(d.x + 3, d.y);
-      context.arc(d.x, d.y, 3, 0, 2 * Math.PI);
-      context.fillText(d.Name, d.x + d.Padding, d.y + d.Height);
+      context.beginPath();
+      if (d.Id < 0) {
+        context.fillStyle = "blue";
+      } else {
+        context.fillStyle = "green";
+      }
+
+      context.moveTo(d.x + 5, d.y);
+      context.arc(d.x, d.y, 5, 0, 2 * Math.PI);
+
+      context.fill();
+
+      context.strokeStyle = "black";
+
+      //context.strokeStyle = "white";
+      //fillText strokeText
+      context.strokeText(d.name, d.x - (d.nameWidth / 2), d.y + 15);
+      context.strokeText(d.lastName, d.x - (d.lastNameWidth / 2), d.y + 25);
+
+
     }
 
 
 
     function collide() {
-      for (var k = 0, strength = 0.5; k < 10; ++k) {
-        for (var i = 0, n = nodes.length; i < n; ++i) {
-          for (var a = nodes[i], j = i + 1; j < n; ++j) {
-            var b = nodes[j],
-              x = a.x + a.vx - b.x - b.vx,
-              y = a.y + a.vy - b.y - b.vy,
-              lx = Math.abs(x),
-              ly = Math.abs(y);
-            //r = a.r + b.r + padding;
-            //if (lx < r && ly < r) {
-            // if (lx > ly) {
-            //   lx = (lx - r) * (x < 0 ? -strength : strength);
-            //   a.vx -= lx, b.vx += lx;
-            // } else {
-            //   ly = (ly - r) * (y < 0 ? -strength : strength);
-            //   a.vy -= ly, b.vy += ly;
-            // }
-            //}
+      let strength = 0.3;
 
-            //TODO: Detectar colisión y evitarla
+      for (let i = 0, n = nodes.length; i < n; ++i) {
+        for (let j = i + 1; j < n; ++j) {
+          let a = nodes[i],
+            b = nodes[j],
+            x = a.x + a.vx - b.x - b.vx,
+            y = a.y + a.vy - b.y - b.vy,
+            lx = Math.abs(x),
+            ly = Math.abs(y),
+            paddingX = Math.abs(a.strength) + Math.abs(b.strength) + 3,
+            paddingY = a.height + b.height + 3;
+
+          if (ly < paddingY && lx < paddingX) {
+            if (lx > ly) {
+              lx = (lx - paddingX) * (x < 0 ? -strength : strength);
+              a.vx -= lx;
+              b.vx += lx;
+            } else {
+              ly = (ly - paddingY) * (y < 0 ? -strength : strength);
+              a.vy -= ly;
+              b.vy += ly;
+            }
           }
         }
       }
     }
 
-    // var force = d3.layout.force().size([w, h]).nodes(nodes).links(links).gravity(1).linkDistance(50).charge(-3000).linkStrength(20).id(function(d) {
-    //   return d.Id;
-    // });
-    //
-    // force.start();
-    //
-    // var force2 = d3.layout.force().nodes(labelAnchors).links(labelAnchorLinks).gravity(0).linkDistance(0).linkStrength(8).charge(-100).size([w, h]);
-    // force2.start();
-    //
-    // var link = vis.selectAll("line.link").data(links).enter().append("svg:line").attr("class", "link").style("stroke", "#CCC");
-    //
-    // var node = vis.selectAll("g.node").data(force.nodes()).enter().append("svg:g").attr("class", "node");
-    // node.append("svg:circle").attr("r", 5).style("fill", "#555").style("stroke", "#FFF").style("stroke-width", 3);
-    // node.call(force.drag);
-    //
-    //
-    // var anchorLink = vis.selectAll("line.anchorLink").data(labelAnchorLinks) //.enter().append("svg:line").attr("class", "anchorLink").style("stroke", "#999");
-    //
-    // var anchorNode = vis.selectAll("g.anchorNode").data(force2.nodes()).enter().append("svg:g").attr("class", "anchorNode");
-    // anchorNode.append("svg:circle").attr("r", 0).style("fill", "#FFF");
-    // anchorNode.append("svg:text").text(function(d, i) {
-    //   return i % 2 == 0 ? "" : d.node.label
-    // }).style("fill", "#555").style("font-family", "Arial").style("font-size", 12);
-    //
-    // var updateLink = function() {
-    //   this.attr("x1", function(d) {
-    //     return d.source.x;
-    //   }).attr("y1", function(d) {
-    //     return d.source.y;
-    //   }).attr("x2", function(d) {
-    //     return d.target.x;
-    //   }).attr("y2", function(d) {
-    //     return d.target.y;
-    //   });
-    //
-    // }
-    //
-    // var updateNode = function() {
-    //   this.attr("transform", function(d) {
-    //     return "translate(" + d.x + "," + d.y + ")";
-    //   });
-    //
-    // }
-    //
-    //
-    // force.on("tick", function() {
-    //
-    //   force2.start();
-    //
-    //   node.call(updateNode);
-    //
-    //   anchorNode.each(function(d, i) {
-    //     if (i % 2 == 0) {
-    //       d.x = d.node.x;
-    //       d.y = d.node.y;
-    //     } else {
-    //       var b = this.childNodes[1].getBBox();
-    //
-    //       var diffX = d.x - d.node.x;
-    //       var diffY = d.y - d.node.y;
-    //
-    //       var dist = Math.sqrt(diffX * diffX + diffY * diffY);
-    //
-    //       var shiftX = b.width * (diffX - dist) / (dist * 2);
-    //       shiftX = Math.max(-b.width, Math.min(0, shiftX));
-    //       var shiftY = 5;
-    //       this.childNodes[1].setAttribute("transform", "translate(" + shiftX + "," + shiftY + ")");
-    //     }
-    //   });
-    //
-    //
-    //   anchorNode.call(updateNode);
-    //
-    //   link.call(updateLink);
-    //   anchorLink.call(updateLink);
-
-    //});
+    function zoomed() {
+      transform = d3.event.transform;
+      ticked();
+    }
   </script>
 </body>
 
