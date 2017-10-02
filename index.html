@@ -6,6 +6,8 @@
   <title>Force based label placement</title>
 
   <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/accounting.js/0.4.1/accounting.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
   <script type="text/javascript" src="red.js"></script>
 </head>
 
@@ -18,9 +20,13 @@
       context = canvas.getContext("2d"),
       width = canvas.width,
       height = canvas.height,
-      transform = d3.zoomIdentity;
-
-
+      Distance = 150,
+      transform = d3.zoomIdentity,
+      types = {
+        Customer: 1,
+        Beneficiary: 2,
+        Amount: 3
+      };
 
 
     var nodes = window.Data.CustomerBeneficiary.map(m => {
@@ -38,22 +44,58 @@
       m.lastNameWidth = context.measureText(m.lastName).width;
 
       m.width = m.nameWidth > m.lastNameWidth ? m.nameWidth : m.lastNameWidth;
-      m.strength = m.width / -2;
 
+      m.type = m.Id < 0 ? types.Customer : types.Beneficiary;
       return m;
     });
 
-    var links = window.Data.Movements.map(m => ({
-      source: m.From,
-      target: m.To
-    }));
+    var links = [];
+
+    window.Data.Movements.forEach(m => {
+
+      let n = {
+        Id: `${m.From},${m.To}`,
+        label: accounting.formatMoney(m.Amount),
+        type: types.Amount,
+      }
+
+      n.width = context.measureText(n.label);
+      n.height = n.width;
+      n.From = _.findWhere(nodes, {
+        Id: m.From
+      });
+      n.To = _.findWhere(nodes, {
+        Id: m.To
+      });
+
+      nodes.push(n);
+
+      links.push({
+        source: n.Id,
+        target: m.From,
+        distance: Distance / 3
+      });
+
+      links.push({
+        source: n.Id,
+        target: m.To,
+        distance: Distance / 3
+      })
+
+      links.push({
+        source: m.From,
+        target: m.To,
+        type: types.Amount,
+        distance: Distance
+      });
+    });
 
 
-    var  charge = d3.forceManyBody().strength(d => d.strength*10);
+    var charge = d3.forceManyBody().strength(d => d.width * -5);
 
     var simulation = d3.forceSimulation(nodes)
       .force("charge", charge)
-      .force("link", d3.forceLink(links).distance(150).iterations(10).id(d => d.Id))
+      .force("link", d3.forceLink(links).distance(d => d.distance).iterations(10).id(d => d.Id))
 
       .force("collide", collide)
       .on("tick", ticked);
@@ -120,11 +162,22 @@
     }
 
     function drawLink(d) {
-      context.moveTo(d.source.x, d.source.y);
-      context.lineTo(d.target.x, d.target.y);
+      if(d.type == types.Amount){
+        context.moveTo(d.source.x, d.source.y);
+        context.lineTo(d.target.x, d.target.y);
+      }
+
     }
 
     function drawNode(d) {
+
+      if (d.type == types.Amount) {
+
+        context.strokeStyle = "black";
+        context.strokeText(d.label, d.x, d.y);
+        return;
+      }
+
       context.beginPath();
       if (d.Id < 0) {
         context.fillStyle = "blue";
@@ -152,13 +205,14 @@
 
       for (let i = 0, n = nodes.length; i < n; ++i) {
         for (let j = i + 1; j < n; ++j) {
+
           let a = nodes[i],
             b = nodes[j],
             x = a.x + a.vx - b.x - b.vx,
             y = a.y + a.vy - b.y - b.vy,
             lx = Math.abs(x),
             ly = Math.abs(y),
-            paddingX = Math.abs(a.strength) + Math.abs(b.strength) + 3,
+            paddingX = (a.width + b.width) / 2,
             paddingY = a.height + b.height + 3;
 
           if (ly < paddingY && lx < paddingX) {
