@@ -50,13 +50,14 @@
     });
 
     var links = [];
+    var amountLabels = [];
+    var allNodes = [];
 
     window.Data.Movements.forEach(m => {
 
       let n = {
         Id: `${m.From},${m.To}`,
         label: accounting.formatMoney(m.Amount),
-        type: types.Amount,
       }
 
       n.width = context.measureText(n.label);
@@ -68,19 +69,19 @@
         Id: m.To
       });
 
-      nodes.push(n);
+      amountLabels.push(n);
 
-      links.push({
-        source: n.Id,
-        target: m.From,
-        distance: Distance / 3
-      });
-
-      links.push({
-        source: n.Id,
-        target: m.To,
-        distance: Distance / 3
-      })
+      // links.push({
+      //   source: n.Id,
+      //   target: m.From,
+      //   distance: Distance / 3
+      // });
+      //
+      // links.push({
+      //   source: n.Id,
+      //   target: m.To,
+      //   distance: Distance * 2 / 3
+      // })
 
       links.push({
         source: m.From,
@@ -90,14 +91,13 @@
       });
     });
 
-
-    var charge = d3.forceManyBody().strength(d => d.width * -5);
+    allNodes = nodes.concat(amountLabels);
 
     var simulation = d3.forceSimulation(nodes)
-      .force("charge", charge)
+      .force("charge", d3.forceManyBody().strength(d => d.width * -5))
       .force("link", d3.forceLink(links).distance(d => d.distance).iterations(10).id(d => d.Id))
-
       .force("collide", collide)
+      .force("amountsLabel", amountLabelPositioning)
       .on("tick", ticked);
 
     d3.select("canvas")
@@ -125,6 +125,8 @@
       context.stroke();
 
       nodes.forEach(drawNode);
+
+      amountLabels.forEach(drawAmountLabel);
 
       context.restore();
     }
@@ -162,22 +164,19 @@
     }
 
     function drawLink(d) {
-      if(d.type == types.Amount){
-        context.moveTo(d.source.x, d.source.y);
-        context.lineTo(d.target.x, d.target.y);
-      }
+
+      context.moveTo(d.source.x, d.source.y);
+      context.lineTo(d.target.x, d.target.y);
+
 
     }
 
+    function drawAmountLabel(d) {
+      context.strokeStyle = "black";
+      context.strokeText(d.label, d.x, d.y);
+    }
+
     function drawNode(d) {
-
-      if (d.type == types.Amount) {
-
-        context.strokeStyle = "black";
-        context.strokeText(d.label, d.x, d.y);
-        return;
-      }
-
       context.beginPath();
       if (d.Id < 0) {
         context.fillStyle = "blue";
@@ -199,20 +198,40 @@
 
     }
 
+    function amountLabelPositioning() {
+
+      for (let i = 0; i < amountLabels.length; i++) {
+        let a = amountLabels[i];
+        a.x = (a.From.x + a.To.x) / 2;
+        a.y = (a.From.y + a.To.y) / 2
+      }
+
+
+    }
 
     function collide() {
       let strength = 0.3;
 
-      for (let i = 0, n = nodes.length; i < n; ++i) {
+      for (let i = 0; i < amountLabels.length; i++) {
+        let a = amountLabels[i],
+          x = a.x + a.vx - ((a.From.x + a.To.x) / 2),
+          y = a.y + a.vy - ((a.From.y + a.To.y) / 2);
+
+        a.vx = x * strength;
+        a.vy = y * strength;
+
+      }
+
+      for (let i = 0, n = allNodes.length; i < n; ++i) {
         for (let j = i + 1; j < n; ++j) {
 
-          let a = nodes[i],
-            b = nodes[j],
+          let a = allNodes[i],
+            b = allNodes[j],
             x = a.x + a.vx - b.x - b.vx,
             y = a.y + a.vy - b.y - b.vy,
             lx = Math.abs(x),
             ly = Math.abs(y),
-            paddingX = (a.width + b.width) / 2,
+            paddingX = ((a.width + b.width) / 2) + 3,
             paddingY = a.height + b.height + 3;
 
           if (ly < paddingY && lx < paddingX) {
