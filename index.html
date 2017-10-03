@@ -167,9 +167,11 @@
 
       nodes.forEach(drawNode);
 
-      amountLabels.forEach(drawAmountLabel);
+
 
       context.restore();
+
+      amountLabels.forEach(drawAmountLabel);
     }
 
 
@@ -216,14 +218,33 @@
 
     function drawAmountLabel(d) {
 
+      context.save();
+      context.translate(transform.x + d.x, transform.y + d.y);
+      context.scale(transform.k, transform.k);
 
-        d.x = (d.From.x + d.To.x) / 2;
-        d.y = (d.From.y + d.To.y) / 2
+      let a = Math.atan2(d.To.y - d.From.y, d.To.x - d.From.x);
+
+      if(a > Math.PI/2 && a < Math.PI*3/2){
+        a = a + Math.PI;
+      }
+
+      let b = a - Math.Pi;
+      // d.x = d.From.x + (Distance * Math.cos(a) / 3);
+      // d.y = d.To.y + (Distance * Math.sin(a) / 3);
+      d.x = (d.From.x + d.To.x) / 2;
+      d.y = (d.From.y + d.To.y) / 2
+
+      //context.translate(d.x,d.y);
+      context.rotate(a);
+
+      context.textAlign = 'center';
       context.strokeStyle = "white";
-      context.strokeText(d.label, d.x, d.y);
+      context.strokeText(d.label, -20, 0);
 
       context.fillStyle = "black";
-      context.fillText(d.label, d.x, d.y);
+      context.fillText(d.label, -20, 0);
+
+      context.restore();
     }
 
     function drawNode(d) {
@@ -243,10 +264,11 @@
 
       context.strokeStyle = "white";
       //fillText strokeText
-      context.strokeText(d.name, d.x - (d.nameWidth / 2), d.y + 15);
-      context.strokeText(d.lastName, d.x - (d.lastNameWidth / 2), d.y + 25);
-      context.fillText(d.name, d.x - (d.nameWidth / 2), d.y + 15);
-      context.fillText(d.lastName, d.x - (d.lastNameWidth / 2), d.y + 25);
+      context.textAlign = 'center';
+      context.strokeText(d.name, d.x, d.y + 15);
+      context.strokeText(d.lastName, d.x, d.y + 25);
+      context.fillText(d.name, d.x, d.y + 15);
+      context.fillText(d.lastName, d.x, d.y + 25);
 
     }
 
