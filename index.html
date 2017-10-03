@@ -9,15 +9,31 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/accounting.js/0.4.1/accounting.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
   <script type="text/javascript" src="red.js"></script>
+
+  <style type="text/css" media="screen">
+    #range>div {
+      width: 5px;
+      height: 20px;
+      float: left;
+      margin: 0;
+    }
+  </style>
 </head>
 
 <body>
 
+
   <canvas width="960" height="960"></canvas>
+
+
+  <div id="range" style="float: right;">
+
+  </div>
 
   <script type="text/javascript" charset="utf-8">
     var canvas = document.querySelector("canvas"),
       context = canvas.getContext("2d"),
+      scaleContainer = d3.select('#range'),
       width = canvas.width,
       height = canvas.height,
       Distance = 150,
@@ -28,6 +44,31 @@
         Amount: 3
       };
 
+
+    var amounts = _.pluck(window.Data.Movements, 'Amount');
+    var minAmount = _.min(amounts);
+    var maxAmount = _.max(amounts);
+
+    var colorRanges = d3.scaleLinear().domain([minAmount, maxAmount])
+      .interpolate(d3.interpolateHcl)
+      .range([d3.rgb("#00FF00"), d3.rgb('#FF0000')]);
+
+    var scale = _.range(minAmount, maxAmount, (maxAmount - minAmount) / 25);
+
+    for (let s of scale) {
+      scaleContainer.append('div').attr('style', function(d) {
+        return 'background-color: ' + colorRanges(s);
+      });
+    }
+
+
+
+
+    for (var i = 0; i < length; i++) {
+      body.append('div').attr('style', function(d) {
+        return 'background-color: ' + color(i);
+      });
+    }
 
     var nodes = window.Data.CustomerBeneficiary.map(m => {
       let names = m.Name.split(' ');
@@ -86,7 +127,7 @@
       links.push({
         source: m.From,
         target: m.To,
-        type: types.Amount,
+        amount: m.Amount,
         distance: Distance
       });
     });
@@ -119,10 +160,10 @@
       context.translate(transform.x, transform.y);
       context.scale(transform.k, transform.k);
 
-      context.beginPath();
+      //context.beginPath();
       links.forEach(drawLink);
-      context.strokeStyle = "#F88";
-      context.stroke();
+      // context.strokeStyle = "#F88";
+      // context.stroke();
 
       nodes.forEach(drawNode);
 
@@ -165,15 +206,20 @@
 
     function drawLink(d) {
 
+      context.beginPath();
       context.moveTo(d.source.x, d.source.y);
       context.lineTo(d.target.x, d.target.y);
 
-
+      context.strokeStyle = colorRanges(d.amount);
+      context.stroke();
     }
 
     function drawAmountLabel(d) {
-      context.strokeStyle = "black";
+      context.strokeStyle = "white";
       context.strokeText(d.label, d.x, d.y);
+
+      context.fillStyle = "black";
+      context.fillText(d.label, d.x, d.y);
     }
 
     function drawNode(d) {
@@ -189,12 +235,14 @@
 
       context.fill();
 
-      context.strokeStyle = "black";
+      //context.strokeStyle = "black";
 
-      //context.strokeStyle = "white";
+      context.strokeStyle = "white";
       //fillText strokeText
       context.strokeText(d.name, d.x - (d.nameWidth / 2), d.y + 15);
       context.strokeText(d.lastName, d.x - (d.lastNameWidth / 2), d.y + 25);
+      context.fillText(d.name, d.x - (d.nameWidth / 2), d.y + 15);
+      context.fillText(d.lastName, d.x - (d.lastNameWidth / 2), d.y + 25);
 
     }
 
