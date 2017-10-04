@@ -134,8 +134,9 @@
 
     allNodes = nodes.concat(amountLabels);
 
+    var charge = d3.forceManyBody().strength(d => d.width * -5);
     var simulation = d3.forceSimulation(nodes)
-      .force("charge", d3.forceManyBody().strength(d => d.width * -5))
+      .force("charge", charge)
       .force("link", d3.forceLink(links).distance(d => d.distance).iterations(10).id(d => d.Id))
       .force("collide", collide)
 
@@ -194,6 +195,8 @@
 
     function dragstarted() {
       if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+      simlation.force("charge",null);
+
     }
 
     function dragged() {
@@ -204,6 +207,7 @@
 
     function dragended() {
       if (!d3.event.active) simulation.alphaTarget(0);
+      //simlation.force("charge",charge);
     }
 
     function drawLink(d) {
@@ -219,30 +223,35 @@
     function drawAmountLabel(d) {
 
       context.save();
-      context.translate(transform.x + d.x, transform.y + d.y);
+      context.translate(transform.x + (d.x * transform.k), transform.y + (d.y * transform.k));
+      //context.translate(transform.x, transform.y);
       context.scale(transform.k, transform.k);
 
       let a = Math.atan2(d.To.y - d.From.y, d.To.x - d.From.x);
 
-      if(a > Math.PI/2 && a < Math.PI*3/2){
+      d.x = d.From.x + (Distance * Math.cos(a) / 2);
+      d.y = d.From.y + (Distance * Math.sin(a) / 2);
+
+      if (Math.abs(a) > Math.PI / 2) {
         a = a + Math.PI;
       }
 
       let b = a - Math.Pi;
-      // d.x = d.From.x + (Distance * Math.cos(a) / 3);
-      // d.y = d.To.y + (Distance * Math.sin(a) / 3);
-      d.x = (d.From.x + d.To.x) / 2;
-      d.y = (d.From.y + d.To.y) / 2
+
+      //d.x = (d.From.x + d.To.x) / 2;
+      //d.y = (d.From.y + d.To.y) / 2
 
       //context.translate(d.x,d.y);
       context.rotate(a);
 
       context.textAlign = 'center';
       context.strokeStyle = "white";
-      context.strokeText(d.label, -20, 0);
+      context.strokeText(d.label, 0, -10);
 
       context.fillStyle = "black";
-      context.fillText(d.label, -20, 0);
+      context.fillText(d.label, 0, -10);
+
+
 
       context.restore();
     }
