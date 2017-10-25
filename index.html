@@ -194,8 +194,12 @@
     }
 
     function dragstarted() {
-      if (!d3.event.active) simulation.alphaTarget(0.3).restart();
-      simlation.force("charge",null);
+
+      //if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+      //simlation.force("charge", null);
+
+      if (!d3.event.active)
+        simulation.stop();
 
     }
 
@@ -206,7 +210,7 @@
     }
 
     function dragended() {
-      if (!d3.event.active) simulation.alphaTarget(0);
+      //if (!d3.event.active) simulation.alphaTarget(0);
       //simlation.force("charge",charge);
     }
 
